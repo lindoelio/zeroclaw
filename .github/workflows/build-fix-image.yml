@@ -115,7 +115,6 @@ jobs:
             'host = "[::]"' \
             'allow_public_bind = true' \
             > docker-ctx/zeroclaw-data/.zeroclaw/config.toml
-          chown -R 65534:65534 docker-ctx/zeroclaw-data
 
       - name: Build and push Debian image
         uses: docker/build-push-action@v6
