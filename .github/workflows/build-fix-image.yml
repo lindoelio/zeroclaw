@@ -13,16 +13,72 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
 
 jobs:
-  build-and-push:
-    name: Build Debian Image
+  build:
+    name: Build Binary
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libudev-dev pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94
+
+      - name: Ensure web/dist placeholder exists
+        run: mkdir -p web/dist && touch web/dist/.gitkeep
+
+      - name: Exclude tauri from workspace
+        run: sed -i 's/"apps\/tauri"[, ]*//' Cargo.toml
+
+      - name: Build release
+        run: cargo build --release --locked --features "channel-lark,whatsapp-web"
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+
+      - name: Check binary size
+        run: |
+          size=$(stat -c%s target/release/zeroclaw)
+          echo "Binary size: $size bytes"
+          if [ "$size" -lt 1000000 ]; then
+            echo "ERROR: binary too small (${size} bytes)"
+            exit 1
+          fi
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zeroclaw-binary
+          path: target/release/zeroclaw
+          retention-days: 1
+
+  build-image:
+    name: Build Docker Image
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: zeroclaw-binary
+          path: bin/amd64/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,11 +96,32 @@ jobs:
           VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Prepare docker context
+        run: |
+          mkdir -p docker-ctx/bin/amd64 docker-ctx/zeroclaw-data/.zeroclaw docker-ctx/zeroclaw-data/workspace
+          cp bin/amd64/zeroclaw docker-ctx/bin/amd64/
+          cp Dockerfile.ci docker-ctx/Dockerfile
+          cp Dockerfile.debian.ci docker-ctx/Dockerfile.debian
+          printf '%s\n' \
+            'workspace_dir = "/zeroclaw-data/workspace"' \
+            'config_path = "/zeroclaw-data/.zeroclaw/config.toml"' \
+            'api_key = ""' \
+            'default_provider = "openrouter"' \
+            'default_model = "anthropic/claude-sonnet-4-20250514"' \
+            'default_temperature = 0.7' \
+            '' \
+            '[gateway]' \
+            'port = 42617' \
+            'host = "[::]"' \
+            'allow_public_bind = true' \
+            > docker-ctx/zeroclaw-data/.zeroclaw/config.toml
+          chown -R 65534:65534 docker-ctx/zeroclaw-data
+
       - name: Build and push Debian image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile.debian
+          context: docker-ctx
+          file: docker-ctx/Dockerfile.debian
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-telegram-get-fix
