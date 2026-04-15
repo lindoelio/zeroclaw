@@ -38,10 +38,23 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 # 1. Copy manifests to cache dependencies
 COPY Cargo.toml Cargo.lock ./
-# Include every workspace member: Cargo.lock is generated for the full workspace.
-# Previously we used sed to drop `crates/robot-kit`, which made the manifest disagree
-# with the lockfile and caused `cargo --locked` to fail (Cargo refused to rewrite the lock).
+# Include every workspace member so Cargo can resolve the full workspace.
+COPY crates/aardvark-sys/ crates/aardvark-sys/
 COPY crates/robot-kit/ crates/robot-kit/
+COPY crates/zeroclaw-api/ crates/zeroclaw-api/
+COPY crates/zeroclaw-channels/ crates/zeroclaw-channels/
+COPY crates/zeroclaw-config/ crates/zeroclaw-config/
+COPY crates/zeroclaw-gateway/ crates/zeroclaw-gateway/
+COPY crates/zeroclaw-hardware/ crates/zeroclaw-hardware/
+COPY crates/zeroclaw-infra/ crates/zeroclaw-infra/
+COPY crates/zeroclaw-macros/ crates/zeroclaw-macros/
+COPY crates/zeroclaw-memory/ crates/zeroclaw-memory/
+COPY crates/zeroclaw-plugins/ crates/zeroclaw-plugins/
+COPY crates/zeroclaw-providers/ crates/zeroclaw-providers/
+COPY crates/zeroclaw-runtime/ crates/zeroclaw-runtime/
+COPY crates/zeroclaw-tool-call-parser/ crates/zeroclaw-tool-call-parser/
+COPY crates/zeroclaw-tools/ crates/zeroclaw-tools/
+COPY crates/zeroclaw-tui/ crates/zeroclaw-tui/
 # Create dummy targets declared in Cargo.toml so manifest parsing succeeds.
 RUN mkdir -p src benches \
     && echo "fn main() {}" > src/main.rs \
