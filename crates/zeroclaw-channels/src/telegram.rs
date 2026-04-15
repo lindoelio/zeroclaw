@@ -2798,7 +2798,7 @@ impl Channel for TelegramChannel {
                 "timeout": 0,
                 "allowed_updates": ["message"]
             });
-            match self.http_client().post(&url).json(&probe).send().await {
+            match self.http_client().get(&url).query(&probe).send().await {
                 Err(e) => {
                     tracing::warn!("Telegram startup probe error: {e}; retrying in 5s");
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -2872,7 +2872,7 @@ impl Channel for TelegramChannel {
                 "allowed_updates": ["message"]
             });
 
-            let resp = match self.http_client().post(&url).json(&body).send().await {
+            let resp = match self.http_client().get(&url).query(&body).send().await {
                 Ok(r) => r,
                 Err(e) => {
                     tracing::warn!("Telegram poll error: {e}");
