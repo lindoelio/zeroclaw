@@ -43,7 +43,7 @@ jobs:
         run: sed -i 's/"apps\/tauri"[, ]*//' Cargo.toml
 
       - name: Build release
-        run: cargo build --release --locked --features "channel-lark,whatsapp-web"
+        run: cargo build --release --features "channel-lark,whatsapp-web"
         env:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
