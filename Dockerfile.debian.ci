@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the pre-built binary for this platform (amd64 or arm64)
 COPY bin/${TARGETARCH}/zeroclaw /usr/local/bin/zeroclaw
+RUN chmod +x /usr/local/bin/zeroclaw
 
 # Runtime directory structure and default config
 COPY --chown=65534:65534 zeroclaw-data/ /zeroclaw-data/
