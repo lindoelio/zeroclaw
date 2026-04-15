@@ -38,7 +38,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 # 1. Copy manifests to cache dependencies
 COPY Cargo.toml Cargo.lock ./
-# Include every workspace member so Cargo can resolve the full workspace.
+# Exclude apps/tauri from workspace members since it requires Node.js/Tauri toolchain
+# that is not available in this Docker image. Use sed to remove it from the members list.
+RUN sed -i 's/"apps\/tauri"[, ]*//' Cargo.toml
+# Include every workspace member so Cargo can resolve the full workspace manifest.
 COPY crates/aardvark-sys/ crates/aardvark-sys/
 COPY crates/robot-kit/ crates/robot-kit/
 COPY crates/zeroclaw-api/ crates/zeroclaw-api/
